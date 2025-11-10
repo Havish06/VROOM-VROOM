@@ -66,7 +66,7 @@ const App: React.FC = () => {
   return (
     <div className="min-h-screen bg-base font-sans flex flex-col items-center justify-center p-4 selection:bg-primary/30">
       <header className="text-center mb-6">
-        <h1 className="text-4xl md:text-5xl font-bold tracking-tight text-white">VROOM VROOM</h1>
+        <h1 className="text-4xl md:text-5xl font-bold tracking-tight text-white">ISHITHAWW</h1>
         <p className="text-secondary mt-2">Measure your network performance in real-time.</p>
       </header>
 
