@@ -1,0 +1,5 @@
+{
+  "name": "ISHITHAWW",
+  "description": "A web application to measure real-time network performance, including ping, download speed, and upload speed, with a live visualization of network performance.",
+  "requestFramePermissions": []
+}
