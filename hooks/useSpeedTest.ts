@@ -13,6 +13,7 @@ interface State {
 type Action =
   | { type: 'START' }
   | { type: 'SET_PING'; payload: number }
+  | { type: 'ADD_PING_DATAPOINT'; payload: SpeedDataPoint }
   | { type: 'UPDATE_DOWNLOAD_SPEED'; payload: { speed: number; dataPoint: SpeedDataPoint } }
   | { type: 'FINISH_DOWNLOAD'; payload: number }
   | { type: 'ERROR'; payload: string }
@@ -32,6 +33,8 @@ function reducer(state: State, action: Action): State {
       return { ...initialState, status: TestState.PING };
     case 'SET_PING':
       return { ...state, status: TestState.DOWNLOAD, results: { ...state.results, ping: action.payload } };
+    case 'ADD_PING_DATAPOINT':
+      return { ...state, graphData: [...state.graphData, action.payload] };
     case 'UPDATE_DOWNLOAD_SPEED':
       return { ...state, liveSpeed: action.payload.speed, graphData: [...state.graphData, action.payload.dataPoint] };
     case 'FINISH_DOWNLOAD':
@@ -48,13 +51,16 @@ function reducer(state: State, action: Action): State {
 export const useSpeedTest = () => {
   const [state, dispatch] = useReducer(reducer, initialState);
 
-  const measurePing = async () => {
+  const measurePing = async (testStartTime: number) => {
     let totalLatency = 0;
     for (let i = 0; i < PING_COUNT; i++) {
       const startTime = performance.now();
       try {
         await fetch(`${PING_URL}&t=${Date.now()}`, { method: 'HEAD', cache: 'no-store', mode: 'cors' });
-        totalLatency += performance.now() - startTime;
+        const latency = performance.now() - startTime;
+        totalLatency += latency;
+        const time = (performance.now() - testStartTime) / 1000;
+        dispatch({ type: 'ADD_PING_DATAPOINT', payload: { time, ping: latency, download: null } });
       } catch (e) {
          totalLatency += 500;
       }
@@ -63,11 +69,11 @@ export const useSpeedTest = () => {
     dispatch({ type: 'SET_PING', payload: avgPing });
   };
 
-  const measureDownloadSpeed = async (abortController: AbortController) => {
+  const measureDownloadSpeed = async (abortController: AbortController, testStartTime: number) => {
     const { signal } = abortController;
     let loadedBytes = 0;
-    const startTime = performance.now();
-    let lastUpdateTime = startTime;
+    const downloadStartTime = performance.now();
+    let lastUpdateTime = downloadStartTime;
     let lastLoadedBytes = 0;
 
     const interval = setInterval(() => {
@@ -79,7 +85,7 @@ export const useSpeedTest = () => {
         
         dispatch({ type: 'UPDATE_DOWNLOAD_SPEED', payload: { 
             speed: speedMbps,
-            dataPoint: { time: (currentTime - startTime) / 1000, download: speedMbps }
+            dataPoint: { time: (currentTime - testStartTime) / 1000, download: speedMbps, ping: null }
         }});
       }
       
@@ -101,12 +107,12 @@ export const useSpeedTest = () => {
             loadedBytes += value.length;
         }
 
-        const durationSeconds = (performance.now() - startTime) / 1000;
+        const durationSeconds = (performance.now() - downloadStartTime) / 1000;
         const finalSpeedMbps = (loadedBytes * 8) / (durationSeconds * 1000 * 1000);
         dispatch({ type: 'FINISH_DOWNLOAD', payload: finalSpeedMbps });
     } catch (e: any) {
         if (e.name === 'AbortError') {
-            const durationSeconds = (performance.now() - startTime) / 1000;
+            const durationSeconds = (performance.now() - downloadStartTime) / 1000;
             const finalSpeedMbps = loadedBytes > 0 ? (loadedBytes * 8) / (durationSeconds * 1000 * 1000) : 0;
             dispatch({ type: 'FINISH_DOWNLOAD', payload: finalSpeedMbps });
         } else {
@@ -123,10 +129,11 @@ export const useSpeedTest = () => {
 
     dispatch({ type: 'START' });
     const abortController = new AbortController();
+    const testStartTime = performance.now();
 
     try {
-      await measurePing();
-      await measureDownloadSpeed(abortController);
+      await measurePing(testStartTime);
+      await measureDownloadSpeed(abortController, testStartTime);
     } catch (e) {
       if (e instanceof Error) {
         dispatch({ type: 'ERROR', payload: e.message });

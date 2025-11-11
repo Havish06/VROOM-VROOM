@@ -11,6 +11,7 @@ export enum TestState {
 export interface SpeedDataPoint {
   time: number;
   download: number | null;
+  ping: number | null;
 }
 
 export interface TestResults {

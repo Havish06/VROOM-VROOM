@@ -1,14 +1,15 @@
 import React from 'react';
-import { AreaChart, Area, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from 'recharts';
+import { AreaChart, Area, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Legend, Line } from 'recharts';
 import { SpeedDataPoint, SpeedUnit } from '../types';
 
 interface SpeedChartProps {
   data: SpeedDataPoint[];
-  yDomain: [number, number];
-  unit: SpeedUnit;
+  downloadYDomain: [number, number];
+  pingYDomain: [number, number];
+  speedUnit: SpeedUnit;
 }
 
-const SpeedChart: React.FC<SpeedChartProps> = ({ data, yDomain, unit }) => {
+const SpeedChart: React.FC<SpeedChartProps> = ({ data, downloadYDomain, pingYDomain, speedUnit }) => {
   return (
     <div className="w-full h-64 bg-dark/50 p-4 rounded-2xl">
       <ResponsiveContainer width="100%" height="100%">
@@ -37,10 +38,19 @@ const SpeedChart: React.FC<SpeedChartProps> = ({ data, yDomain, unit }) => {
             type="number"
           />
           <YAxis 
+            yAxisId="left"
             stroke="#9ca3af" 
             tick={{ fontSize: 12 }} 
-            unit={` ${unit}`}
-            domain={yDomain}
+            unit={` ${speedUnit}`}
+            domain={downloadYDomain}
+          />
+          <YAxis 
+            yAxisId="right"
+            orientation="right"
+            stroke="#A0E9FF"
+            tick={{ fontSize: 12 }}
+            unit=" ms"
+            domain={pingYDomain}
           />
           <Tooltip
             contentStyle={{
@@ -49,10 +59,18 @@ const SpeedChart: React.FC<SpeedChartProps> = ({ data, yDomain, unit }) => {
               borderRadius: '0.5rem',
             }}
             labelStyle={{ color: '#d1d5db' }}
-            formatter={(value: number, name: string) => [`${value.toFixed(2)} ${unit}`, name.charAt(0).toUpperCase() + name.slice(1)]}
+            formatter={(value: number, name: string) => {
+                if (value === null) return null;
+                const upperName = name.charAt(0).toUpperCase() + name.slice(1);
+                const unit = name === 'download' ? speedUnit : 'ms';
+                const formattedValue = `${value.toFixed(name === 'download' ? 2 : 0)} ${unit}`;
+                return [formattedValue, upperName];
+            }}
             labelFormatter={(label: number) => `Time: ${label.toFixed(1)}s`}
           />
-          <Area type="monotone" dataKey="download" stroke="#00A9FF" strokeWidth={2} fillOpacity={1} fill="url(#colorDownload)" />
+          <Legend wrapperStyle={{ fontSize: '14px', paddingTop: '10px' }} />
+          <Area yAxisId="left" name="Download" type="monotone" dataKey="download" stroke="#00A9FF" strokeWidth={2} fillOpacity={1} fill="url(#colorDownload)" />
+          <Line yAxisId="right" name="Ping" type="monotone" dataKey="ping" stroke="#A0E9FF" strokeWidth={2} dot={false} />
         </AreaChart>
       </ResponsiveContainer>
     </div>
